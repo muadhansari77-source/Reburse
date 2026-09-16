@@ -15,6 +15,7 @@ export function TeamPageClient({ firmId, hrInvites }: { firmId: string; hrInvite
   const router = useRouter()
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
+  const [revokeLoading, setRevokeLoading] = useState<string | null>(null)
   const supabase = createClient()
 
   async function handleInvite(e: React.FormEvent) {
@@ -40,6 +41,21 @@ export function TeamPageClient({ firmId, hrInvites }: { firmId: string; hrInvite
     const url = `${window.location.origin}/invite/hr/${token}`
     navigator.clipboard.writeText(url)
     toast.success('Link copied!')
+  }
+
+  async function handleRevoke(invId: string) {
+    if (!confirm('Revoke this invitation? The link will stop working and a record will be kept.')) return
+    setRevokeLoading(invId)
+    try {
+      const { error } = await supabase.rpc('revoke_hr_invitation', { p_invitation_id: invId })
+      if (error) throw error
+      toast.success('Invitation revoked')
+      router.refresh()
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Failed to revoke invitation')
+    } finally {
+      setRevokeLoading(null)
+    }
   }
 
   return (
@@ -69,14 +85,27 @@ export function TeamPageClient({ firmId, hrInvites }: { firmId: string; hrInvite
                   <tr key={inv.id} className="border-b border-slate-50">
                     <td className="px-4 py-3 font-medium">{inv.email}</td>
                     <td className="px-4 py-3">
-                      <Badge variant="outline" className={inv.status === 'accepted' ? 'text-green-700 border-green-200' : 'text-blue-700 border-blue-200'}>
+                      <Badge variant="outline" className={
+                        inv.status === 'accepted' ? 'text-green-700 border-green-200' :
+                        inv.status === 'revoked'  ? 'text-slate-400 border-slate-200' :
+                        'text-blue-700 border-blue-200'
+                      }>
                         {inv.status}
                       </Badge>
                     </td>
                     <td className="px-4 py-3 text-slate-400 text-xs">{new Date(inv.expires_at).toLocaleDateString('en-GB')}</td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 flex gap-3 items-center">
                       {inv.status === 'pending' && (
-                        <button onClick={() => copyLink(inv.token)} className="text-xs text-blue-700 hover:underline">Copy link</button>
+                        <>
+                          <button onClick={() => copyLink(inv.token)} className="text-xs text-blue-700 hover:underline">Copy link</button>
+                          <button
+                            onClick={() => handleRevoke(inv.id)}
+                            disabled={revokeLoading === inv.id}
+                            className="text-xs text-red-600 hover:underline disabled:opacity-50"
+                          >
+                            {revokeLoading === inv.id ? 'Revoking…' : 'Revoke'}
+                          </button>
+                        </>
                       )}
                     </td>
                   </tr>

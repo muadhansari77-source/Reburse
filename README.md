@@ -22,7 +22,8 @@ Fill in `.env.local`:
 ```
 NEXT_PUBLIC_SUPABASE_URL=https://yourproject.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+SUPABASE_SECRET_KEY=your-supabase-secret-key
+SUPABASE_DB_URL=postgresql://postgres:your-db-password@db.yourproject.supabase.co:5432/postgres
 ANTHROPIC_API_KEY=your-anthropic-key
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```

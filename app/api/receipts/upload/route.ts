@@ -12,6 +12,23 @@ export async function POST(req: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+    // Rate limit: 20 uploads per user per hour.
+    // Uses the receipts table directly — no external cache needed.
+    // RLS scopes the count to this user automatically.
+    const UPLOAD_LIMIT = 20
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString()
+    const { count: recentUploads } = await supabase
+      .from('receipts')
+      .select('id', { count: 'exact', head: true })
+      .gte('created_at', oneHourAgo)
+
+    if ((recentUploads ?? 0) >= UPLOAD_LIMIT) {
+      return NextResponse.json(
+        { error: `Upload limit reached. You may upload up to ${UPLOAD_LIMIT} receipts per hour. Please try again later.` },
+        { status: 429, headers: { 'Retry-After': '3600' } }
+      )
+    }
+
     const formData = await req.formData()
     const file = formData.get('file') as File | null
     const claimId = formData.get('claim_id') as string | null
